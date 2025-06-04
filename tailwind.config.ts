@@ -10,8 +10,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        body: ['Inter', 'sans-serif'],
-        headline: ['Inter', 'sans-serif'],
+        body: ['Orbitron', 'sans-serif'],
+        headline: ['Orbitron', 'sans-serif'],
         code: ['monospace'],
       },
       colors: {
@@ -88,10 +88,15 @@ export default {
             height: '0',
           },
         },
+        starShine: {
+          '0%, 100%': { opacity: '0.3', transform: 'scale(0.8)' },
+          '50%': { opacity: '1', transform: 'scale(1.2)' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
+        'star-shine': 'starShine 5s infinite ease-in-out alternate',
       },
     },
   },
