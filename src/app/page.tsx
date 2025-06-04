@@ -8,7 +8,7 @@ import ChatWindow from '@/components/chat/chat-window';
 import ChatInputArea from '@/components/chat/chat-input-area';
 import type { Message } from '@/types';
 import { LANGUAGES } from '@/types';
-import { getChatResponseAction, translateTextAction, generateImageQueryAction } from './actions';
+import { getChatResponseAction, translateTextAction, generateImageQueryAction, generateActualImageAction } from './actions';
 import { useToast } from '@/hooks/use-toast';
 
 export default function HomePage() {
@@ -31,7 +31,7 @@ export default function HomePage() {
   const addMessage = (newMessageOmitIdTimestamp: Omit<Message, 'id' | 'timestamp'>) => {
     const newMessage: Message = {
       ...newMessageOmitIdTimestamp,
-      id: Date.now().toString() + Math.random().toString(36).substring(2, 15), // More unique ID
+      id: Date.now().toString() + Math.random().toString(36).substring(2, 15), 
       timestamp: new Date(),
     };
     setMessages(prev => [...prev, newMessage]);
@@ -55,12 +55,10 @@ export default function HomePage() {
   const handleSendMessage = async (text: string, isImageMode: boolean, language: string | null) => {
     if (!text.trim() && !isImageMode) return;
 
-    const userMessageText = text; // Store the raw text for AI action
+    const userMessageText = text; 
 
-    // Capture history *before* adding the new user message
     const historyForAI = messages.filter(m => !m.isTyping);
 
-    // Add user message to UI
     addMessage({ text: userMessageText, sender: 'user' });
     
     setIsLoading(true);
@@ -69,15 +67,33 @@ export default function HomePage() {
     try {
       if (isImageMode) {
         const imagePromptResult = await generateImageQueryAction(userMessageText);
+        const enhancedPrompt = imagePromptResult.imagePrompt;
+
+        if (!enhancedPrompt) {
+            removeTypingIndicator();
+            addMessage({
+                sender: 'bot',
+                text: "Sorry, I couldn't come up with an image prompt for that. Please try a different description.",
+            });
+            toast({
+                title: 'Image Prompt Generation Failed',
+                description: 'Could not generate an image prompt.',
+                variant: 'destructive',
+            });
+            setIsLoading(false);
+            return;
+        }
+        
+        const actualImageResult = await generateActualImageAction(enhancedPrompt);
+
         removeTypingIndicator();
         addMessage({
           sender: 'bot',
-          text: `Here's an image prompt for: "${userMessageText}"`,
-          imagePrompt: imagePromptResult.imagePrompt,
-          imageUrl: `https://placehold.co/600x400.png?text=AI+Image+For+${encodeURIComponent(userMessageText.substring(0,20))}`,
+          text: `Here's an image I generated based on the prompt: "${enhancedPrompt}"`,
+          imagePrompt: enhancedPrompt,
+          imageUrl: actualImageResult.imageDataUri, 
         });
       } else {
-        // Pass the raw user text and the captured history to the action
         const chatResponse = await getChatResponseAction(userMessageText, historyForAI);
         let botText = chatResponse.botResponse;
         let originalTextForBot;
@@ -109,13 +125,14 @@ export default function HomePage() {
     } catch (error) {
       console.error('Error processing message:', error);
       removeTypingIndicator();
+      const errorMessage = error instanceof Error ? error.message : 'Sorry, I encountered an error. Please try again.';
       addMessage({
         sender: 'bot',
-        text: 'Sorry, I encountered an error. Please try again.',
+        text: errorMessage,
       });
       toast({
         title: 'Error',
-        description: 'Failed to get response from AI.',
+        description: 'Failed to get response from AI. ' + (error instanceof Error ? error.message : ''),
         variant: 'destructive',
       });
     } finally {

@@ -1,3 +1,4 @@
+
 import type { Message } from '@/types';
 import { Bot, User } from 'lucide-react';
 import Image from 'next/image';
@@ -14,14 +15,36 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
     ? 'bg-primary/80 text-primary-foreground self-end neon-glow-primary'
     : 'bg-accent/80 text-accent-foreground self-start neon-glow-accent';
   
-  const Icon = isUser ? User : Bot;
+  const IconOrAvatar = () => {
+    if (isUser) {
+      return <User className={`w-8 h-8 p-1.5 rounded-full bg-primary text-primary-foreground flex-shrink-0`} />;
+    }
+    // For bot, use placeholder avatar if no specific imageUrl is set for a robot avatar (e.g. initial message)
+    // but prefer message.avatarUrl if we want to set a specific avatar for the bot on a per-message basis (not used yet)
+    const botAvatarSrc = message.avatarUrl || "https://placehold.co/40x40.png";
+    const botAltText = message.avatarUrl ? "Bot avatar" : "Default bot avatar placeholder";
+    const botHint = message.avatarUrl ? undefined : "bot icon";
+
+
+    return (
+      <Image
+        src={botAvatarSrc}
+        alt={botAltText}
+        width={40}
+        height={40}
+        className="w-8 h-8 rounded-full flex-shrink-0 object-cover border border-accent"
+        data-ai-hint={botHint}
+      />
+    );
+  };
+
 
   return (
     <div
       className={`flex gap-2 my-2 items-end ${isUser ? 'flex-row-reverse' : 'flex-row'} new-message-bounce`}
       aria-live="polite"
     >
-      <Icon className={`w-8 h-8 p-1.5 rounded-full ${isUser ? 'bg-primary text-primary-foreground' : 'bg-accent text-accent-foreground'} flex-shrink-0`} />
+      <IconOrAvatar />
       <Card className={`max-w-md md:max-w-lg lg:max-w-xl p-3 glassmorphic ${bubbleClasses}`}>
         <CardContent className="p-0">
           {message.isTyping ? (
@@ -44,18 +67,16 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
               )}
               {message.imagePrompt && (
                 <div className="mt-2 pt-2 border-t border-border">
-                  <p className="text-xs font-medium">Generated Image Prompt:</p>
+                  <p className="text-xs font-medium">Image based on prompt:</p>
                   <Badge variant="secondary" className="my-1 text-xs">{message.imagePrompt}</Badge>
                   {message.imageUrl && (
                      <div>
-                      <p className="text-xs text-muted-foreground mb-1">AI-generated image based on your description (placeholder):</p>
                       <Image
                         src={message.imageUrl}
-                        alt="Generated image placeholder"
+                        alt={message.imagePrompt ? `AI generated image for: ${message.imagePrompt}` : "AI generated image"}
                         width={300}
                         height={200}
-                        className="rounded-md border border-border"
-                        data-ai-hint="abstract digital art"
+                        className="rounded-md border border-border object-cover"
                       />
                      </div>
                   )}
