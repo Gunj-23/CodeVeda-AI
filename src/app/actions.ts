@@ -1,3 +1,4 @@
+
 'use server';
 
 import { chatFlow, type ChatFlowInput, type ChatFlowOutput } from '@/ai/flows/chat-flow';
@@ -11,7 +12,7 @@ export async function getChatResponseAction(
 ): Promise<ChatFlowOutput> {
   const formattedHistory = history.map(msg => ({
     role: msg.sender === 'user' ? 'user' : 'model',
-    parts: [{ text: msg.text }],
+    content: [{ text: msg.text }], // Changed 'parts' to 'content'
   }));
 
   const input: ChatFlowInput = {

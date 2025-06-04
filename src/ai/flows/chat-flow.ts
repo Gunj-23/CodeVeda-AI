@@ -6,7 +6,7 @@ import { z } from 'genkit';
 
 const ChatHistoryItemSchema = z.object({
   role: z.enum(['user', 'model']),
-  parts: z.array(z.object({ text: z.string() })),
+  content: z.array(z.object({ text: z.string() })), // Changed 'parts' to 'content'
 });
 
 const ChatFlowInputSchema = z.object({
@@ -25,32 +25,29 @@ export async function chatFlow(input: ChatFlowInput): Promise<ChatFlowOutput> {
   if (input.history) {
     contents.push(...input.history);
   }
-  contents.push({ role: 'user', parts: [{ text: input.userInput }] });
+  // Changed 'parts' to 'content'
+  contents.push({ role: 'user', content: [{ text: input.userInput }] });
 
   try {
-    // Use ai.generate directly. The model from genkit.ts will be used by default.
     const result = await ai.generate({
       messages: contents,
-      // Optionally, explicitly specify the model if needed, though default is set in genkit.ts
-      // model: 'googleai/gemini-2.0-flash',
     });
     
-    // Access the response text using result.text as per Genkit v1.x
     const responseText = result.text;
 
     if (!responseText) {
-      throw new Error('No text in AI response');
+      console.error('Genkit Error in chatFlow: AI response text is undefined or empty.');
+      throw new Error('AI response text is undefined or empty.'); 
     }
 
     return { botResponse: responseText };
-  } catch (error) {
-    console.error("Error in chatFlow:", error);
-    // Provide a fallback or rethrow
-    return { botResponse: "Sorry, I encountered an error. Please try again." };
+  } catch (error: any) {
+    console.error("Error in chatFlow:", error.message || error);
+    console.error("Full error object in chatFlow:", error);
+    return { botResponse: "AI Flow Error: I had trouble processing that. Please try again." };
   }
 }
 
-// Define the flow for Genkit tooling (optional but good practice)
 ai.defineFlow(
   {
     name: 'chatWithBotFlow',
