@@ -84,8 +84,6 @@ const ChatInputArea: React.FC<ChatInputAreaProps> = ({ onSendMessage, isLoading,
     }
   };
 
-  const neonIconStyle = "filter drop-shadow(0 0 3px hsl(var(--accent))) drop-shadow(0 0 5px hsl(var(--accent)))";
-
   return (
     <form onSubmit={handleSubmit} className="p-4 glassmorphic rounded-lg shadow-lg flex flex-col gap-3">
       <div className="flex items-center gap-2">
@@ -98,12 +96,12 @@ const ChatInputArea: React.FC<ChatInputAreaProps> = ({ onSendMessage, isLoading,
           disabled={isLoading || isListening}
         />
         <Button type="button" variant="ghost" size="icon" onClick={handleMicClick} disabled={isLoading} aria-label="Use microphone"
-          className={`${isListening ? 'neon-glow-primary text-primary' : 'hover:text-accent'} transition-all`}>
-          <Mic className={isListening ? `animate-pulse ${neonIconStyle}` : neonIconStyle} />
+          className={`${isListening ? 'text-primary neon-glow-primary' : 'hover:text-accent'} transition-all`}>
+          <Mic className={isListening ? `animate-pulse neon-text-primary` : `neon-text-accent`} />
         </Button>
         <Button type="submit" variant="default" size="icon" disabled={isLoading || (!inputValue.trim() && !isImageMode)} aria-label="Send message"
          className="bg-primary hover:bg-primary/90 text-primary-foreground neon-glow-primary">
-          <Send className={neonIconStyle} />
+          <Send className="neon-text-primary-foreground" /> {/* Ensure send icon contrasts with button */}
         </Button>
       </div>
       
@@ -114,7 +112,7 @@ const ChatInputArea: React.FC<ChatInputAreaProps> = ({ onSendMessage, isLoading,
               checked={isImageMode}
               onCheckedChange={setIsImageMode}
               disabled={isLoading}
-              className="data-[state=checked]:bg-primary"
+              className="data-[state=checked]:bg-primary data-[state=checked]:border-primary data-[state=unchecked]:border-border data-[state=checked]:shadow-[0_0_8px_hsl(var(--primary))]"
             />
             <Label htmlFor="image-mode" className="flex items-center gap-1 text-sm neon-text-primary cursor-pointer">
               <ImageIconLucide size={16} className="mr-1" /> Image Mode
@@ -122,7 +120,7 @@ const ChatInputArea: React.FC<ChatInputAreaProps> = ({ onSendMessage, isLoading,
         </div>
 
         <div className="flex items-center">
-          <Languages size={18} className="mr-2 text-accent neon-text-accent"/>
+          <Languages size={18} className="mr-2 neon-text-accent"/>
           <Select
             value={selectedLanguage || ''}
             onValueChange={(value) => setSelectedLanguage(value === 'none' ? null : value)}

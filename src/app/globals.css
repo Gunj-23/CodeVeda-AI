@@ -4,50 +4,50 @@
 
 @layer base {
   :root {
-    --background: 270 19% 17%; /* #292333 */
-    --foreground: 0 0% 100%; /* White */
+    --background: 200 30% 10%; /* Dark Teal/Blue */
+    --foreground: 200 10% 90%; /* Light Cyan/Off-white */
 
-    --card: 270 19% 20%;
-    --card-foreground: 0 0% 100%;
+    --card: 200 30% 13%;
+    --card-foreground: 200 10% 90%;
 
-    --popover: 270 19% 22%;
-    --popover-foreground: 0 0% 100%;
+    --popover: 200 30% 15%;
+    --popover-foreground: 200 10% 90%;
 
-    --primary: 278 100% 75%; /* #C77DFF Neon Purple */
-    --primary-foreground: 270 19% 10%; /* Dark for contrast on purple */
+    --primary: 320 100% 65%; /* Bright Magenta/Pink */
+    --primary-foreground: 320 100% 10%; /* Dark contrast for magenta */
 
-    --secondary: 270 19% 25%;
-    --secondary-foreground: 0 0% 100%;
+    --secondary: 200 30% 20%;
+    --secondary-foreground: 200 10% 90%;
 
-    --muted: 270 19% 22%;
-    --muted-foreground: 0 0% 65%; /* Lighter muted text */
+    --muted: 200 30% 18%;
+    --muted-foreground: 200 10% 60%; /* Lighter muted text for new theme */
 
-    --accent: 182 100% 75%; /* #7DF9FF Electric Blue */
-    --accent-foreground: 270 19% 10%; /* Dark for contrast on blue */
+    --accent: 80 100% 55%;  /* Electric Lime */
+    --accent-foreground: 80 100% 10%; /* Dark contrast for lime */
 
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 70% 55%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 278 100% 65%; /* Dimmer purple for borders */
-    --input: 270 19% 22%;
-    --ring: 182 100% 75%; /* Accent for focus rings */
+    --border: 320 100% 55%; /* Primary color for borders */
+    --input: 200 30% 18%;
+    --ring: 80 100% 55%;   /* Accent for focus rings */
 
     --radius: 0.5rem;
 
-    --chart-1: 12 76% 61%;
+    --chart-1: 12 76% 61%; /* Retaining chart colors for now, can be themed later if needed */
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
 
-    --sidebar-background: 270 19% 15%;
-    --sidebar-foreground: 0 0% 95%;
-    --sidebar-primary: 182 100% 75%;
-    --sidebar-primary-foreground: 270 19% 10%;
-    --sidebar-accent: 270 19% 20%;
-    --sidebar-accent-foreground: 0 0% 95%;
-    --sidebar-border: 278 100% 60%;
-    --sidebar-ring: 182 100% 75%;
+    --sidebar-background: 200 30% 8%;
+    --sidebar-foreground: 200 10% 85%;
+    --sidebar-primary: 80 100% 55%; /* Accent for sidebar */
+    --sidebar-primary-foreground: 80 100% 10%;
+    --sidebar-accent: 200 30% 12%;
+    --sidebar-accent-foreground: 200 10% 85%;
+    --sidebar-border: 320 100% 50%;
+    --sidebar-ring: 80 100% 55%;
   }
 }
 
@@ -73,10 +73,10 @@
 
 .star {
   position: absolute;
-  background-color: hsl(var(--accent));
+  background-color: hsl(var(--accent)); /* Will use new Electric Lime */
   border-radius: 50%;
   animation: twinkle 5s infinite ease-in-out;
-  box-shadow: 0 0 3px hsl(var(--accent)), 0 0 6px hsl(var(--accent));
+  box-shadow: 0 0 3px hsl(var(--accent)), 0 0 6px hsl(var(--accent)); /* Will use new Electric Lime */
 }
 
 @keyframes twinkle {
@@ -84,7 +84,7 @@
   50% { opacity: 1; transform: scale(1.2); }
 }
 
-/* Neon Glow Effects */
+/* Neon Glow Effects - These will adapt to the new HSL variables */
 .neon-glow-primary {
   box-shadow: 0 0 5px hsl(var(--primary)),
               0 0 10px hsl(var(--primary)),
@@ -114,20 +114,20 @@
   border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: hsl(var(--primary) / 0.7);
+  background: hsl(var(--primary) / 0.7); /* Will use new Bright Magenta */
   border-radius: 10px;
-  border: 1px solid hsl(var(--accent) / 0.5);
+  border: 1px solid hsl(var(--accent) / 0.5); /* Will use new Electric Lime */
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--primary));
+  background: hsl(var(--primary)); /* Will use new Bright Magenta */
 }
 
 /* Glassmorphism for chat bubbles and inputs */
 .glassmorphic {
-  background: hsl(var(--card) / 0.5);
+  background: hsl(var(--card) / 0.5); /* Will use new Dark Teal card bg */
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  border: 1px solid hsl(var(--border) / 0.3);
+  border: 1px solid hsl(var(--border) / 0.3); /* Will use new Bright Magenta border */
   border-radius: var(--radius);
 }
 
