@@ -38,8 +38,8 @@ export async function chatFlow(input: ChatFlowInput): Promise<ChatFlowOutput> {
       (item) =>
         item.role &&
         Array.isArray(item.content) &&
-        item.content.length > 0 && // Ensure content array is not empty
-        item.content.every((c) => typeof c.text === 'string' && c.text.trim() !== '') // Ensure text is a non-empty string
+        item.content.length > 0 && 
+        item.content.every((c) => typeof c.text === 'string' && c.text.trim() !== '') 
     );
     if (validHistory.length !== input.history.length) {
         console.warn('chatFlow: Some history items were filtered out due to invalid structure or empty text.');
@@ -63,18 +63,15 @@ export async function chatFlow(input: ChatFlowInput): Promise<ChatFlowOutput> {
 
 
   try {
-    console.log('Attempting ai.generate with model:', ai.getModel().name); // Log default model
     const result = await ai.generate({
       messages: contents,
     });
     
     const responseText = result.text;
 
-    if (typeof responseText !== 'string' || responseText.trim() === '') { // Check if string and not empty
+    if (typeof responseText !== 'string' || responseText.trim() === '') { 
       console.error('Genkit Error in chatFlow: AI response text is not a valid string or is empty.');
       console.log('Raw AI result:', JSON.stringify(result, null, 2));
-      // It's better to throw an error that gets caught by the calling action/page
-      // than to return a generic error message directly as botResponse here.
       throw new Error('AI response text is undefined, not a string, or empty.');
     }
 
@@ -96,3 +93,4 @@ ai.defineFlow(
   },
   chatFlow
 );
+
