@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -27,11 +28,13 @@ export default function HomePage() {
   }, []);
 
 
-  const addMessage = (newMessage: Omit<Message, 'id' | 'timestamp'>) => {
-    setMessages(prev => [
-      ...prev,
-      { ...newMessage, id: Date.now().toString(), timestamp: new Date() } as Message,
-    ]);
+  const addMessage = (newMessageOmitIdTimestamp: Omit<Message, 'id' | 'timestamp'>) => {
+    const newMessage: Message = {
+      ...newMessageOmitIdTimestamp,
+      id: Date.now().toString() + Math.random().toString(36).substring(2, 15), // More unique ID
+      timestamp: new Date(),
+    };
+    setMessages(prev => [...prev, newMessage]);
   };
   
   const addTypingIndicator = () => {
@@ -52,36 +55,40 @@ export default function HomePage() {
   const handleSendMessage = async (text: string, isImageMode: boolean, language: string | null) => {
     if (!text.trim() && !isImageMode) return;
 
-    const userMessage: Omit<Message, 'id' | 'timestamp'> = { text, sender: 'user' };
-    addMessage(userMessage);
+    const userMessageText = text; // Store the raw text for AI action
+
+    // Capture history *before* adding the new user message
+    const historyForAI = messages.filter(m => !m.isTyping);
+
+    // Add user message to UI
+    addMessage({ text: userMessageText, sender: 'user' });
+    
     setIsLoading(true);
     addTypingIndicator();
 
     try {
       if (isImageMode) {
-        const imagePromptResult = await generateImageQueryAction(text);
+        const imagePromptResult = await generateImageQueryAction(userMessageText);
         removeTypingIndicator();
         addMessage({
           sender: 'bot',
-          text: `Here's an image prompt for: "${text}"`,
+          text: `Here's an image prompt for: "${userMessageText}"`,
           imagePrompt: imagePromptResult.imagePrompt,
-          imageUrl: `https://placehold.co/600x400.png?text=AI+Image+For+${encodeURIComponent(text.substring(0,20))}`,
+          imageUrl: `https://placehold.co/600x400.png?text=AI+Image+For+${encodeURIComponent(userMessageText.substring(0,20))}`,
         });
       } else {
-        const history = messages.filter(m => !m.isTyping); // Exclude typing indicator from history
-        const chatResponse = await getChatResponseAction(text, history);
+        // Pass the raw user text and the captured history to the action
+        const chatResponse = await getChatResponseAction(userMessageText, historyForAI);
         let botText = chatResponse.botResponse;
         let originalTextForBot;
         let translatedTextForBot;
 
-        if (language && language !== 'en' && botText) { // Assuming 'en' is the default AI language
+        if (language && language !== 'en' && botText) { 
           originalTextForBot = botText;
           try {
             const translationResult = await translateTextAction(botText, language);
             translatedTextForBot = translationResult.translatedText;
-            // Update botText to be the translated one if translation is successful
             if(translatedTextForBot) botText = translatedTextForBot;
-
           } catch (translateError) {
             console.error('Translation error:', translateError);
             toast({
@@ -89,7 +96,6 @@ export default function HomePage() {
               description: 'Could not translate the response.',
               variant: 'destructive',
             });
-            // Keep botText as original if translation fails
           }
         }
         removeTypingIndicator();
