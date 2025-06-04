@@ -20,8 +20,6 @@ const ChatFlowOutputSchema = z.object({
 export type ChatFlowOutput = z.infer<typeof ChatFlowOutputSchema>;
 
 export async function chatFlow(input: ChatFlowInput): Promise<ChatFlowOutput> {
-  const model = ai.getModel('googleai/gemini-2.0-flash'); // Using configured model
-
   const contents = [];
   if (input.history) {
     contents.push(...input.history);
@@ -29,14 +27,15 @@ export async function chatFlow(input: ChatFlowInput): Promise<ChatFlowOutput> {
   contents.push({ role: 'user', parts: [{ text: input.userInput }] });
 
   try {
-    const result = await model.generate({
-      messages: contents, // Assuming genkit uses 'messages' or similar for history
-       // Or use a specific prompt structure if needed for chat with this model
-      // candidates: 1, // Request one candidate
-      // Temperature, topK, topP can be configured here if needed
+    // Use ai.generate directly. The model from genkit.ts will be used by default.
+    const result = await ai.generate({
+      messages: contents,
+      // Optionally, explicitly specify the model if needed, though default is set in genkit.ts
+      // model: 'googleai/gemini-2.0-flash', 
     });
     
-    const responseText = result.candidates[0]?.message?.parts[0]?.text;
+    // Access the response text using result.text as per Genkit v1.x
+    const responseText = result.text;
 
     if (!responseText) {
       throw new Error('No text in AI response');
