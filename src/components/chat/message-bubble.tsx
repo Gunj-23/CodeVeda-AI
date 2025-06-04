@@ -35,7 +35,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
             <>
               <p className="whitespace-pre-wrap break-words">{message.text}</p>
               {message.originalText && message.translatedText && (
-                <div className="mt-2 pt-2 border-t border-[var(--border-color)] opacity-80">
+                <div className="mt-2 pt-2 border-t border-border opacity-80">
                   <p className="text-xs font-medium">Original:</p>
                   <p className="text-sm whitespace-pre-wrap break-words">{message.originalText}</p>
                   <p className="text-xs font-medium mt-1">Translated:</p>
@@ -43,7 +43,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
                 </div>
               )}
               {message.imagePrompt && (
-                <div className="mt-2 pt-2 border-t border-[var(--border-color)]">
+                <div className="mt-2 pt-2 border-t border-border">
                   <p className="text-xs font-medium">Generated Image Prompt:</p>
                   <Badge variant="secondary" className="my-1 text-xs">{message.imagePrompt}</Badge>
                   {message.imageUrl && (
@@ -54,7 +54,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
                         alt="Generated image placeholder"
                         width={300}
                         height={200}
-                        className="rounded-md border border-[var(--border-color)]"
+                        className="rounded-md border border-border"
                         data-ai-hint="abstract digital art"
                       />
                      </div>
