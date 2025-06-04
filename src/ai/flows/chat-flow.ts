@@ -1,3 +1,4 @@
+
 'use server';
 
 import { ai } from '@/ai/genkit';
@@ -31,7 +32,7 @@ export async function chatFlow(input: ChatFlowInput): Promise<ChatFlowOutput> {
     const result = await ai.generate({
       messages: contents,
       // Optionally, explicitly specify the model if needed, though default is set in genkit.ts
-      // model: 'googleai/gemini-2.0-flash', 
+      // model: 'googleai/gemini-2.0-flash',
     });
     
     // Access the response text using result.text as per Genkit v1.x
