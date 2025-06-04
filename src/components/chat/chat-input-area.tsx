@@ -92,16 +92,16 @@ const ChatInputArea: React.FC<ChatInputAreaProps> = ({ onSendMessage, isLoading,
           value={inputValue}
           onChange={(e: ChangeEvent<HTMLInputElement>) => setInputValue(e.target.value)}
           placeholder={isImageMode ? "Describe image to generate..." : "Type your message..."}
-          className="flex-grow bg-input/50 border-border focus:ring-accent neon-glow-accent text-base"
+          className="flex-grow bg-input/50 border-border focus:ring-ring text-base"
           disabled={isLoading || isListening}
         />
         <Button type="button" variant="ghost" size="icon" onClick={handleMicClick} disabled={isLoading} aria-label="Use microphone"
-          className={`${isListening ? 'text-primary neon-glow-primary' : 'hover:text-accent'} transition-all`}>
-          <Mic className={isListening ? `animate-pulse neon-text-primary` : `neon-text-accent`} />
+          className={`${isListening ? 'text-primary neon-text-primary' : 'hover:text-accent neon-text-accent'} transition-all`}>
+          <Mic className={isListening ? `animate-pulse` : ``} />
         </Button>
         <Button type="submit" variant="default" size="icon" disabled={isLoading || (!inputValue.trim() && !isImageMode)} aria-label="Send message"
          className="bg-primary hover:bg-primary/90 text-primary-foreground neon-glow-primary">
-          <Send className="neon-text-primary-foreground" /> {/* Ensure send icon contrasts with button */}
+          <Send className="text-primary-foreground" />
         </Button>
       </div>
       
@@ -126,7 +126,7 @@ const ChatInputArea: React.FC<ChatInputAreaProps> = ({ onSendMessage, isLoading,
             onValueChange={(value) => setSelectedLanguage(value === 'none' ? null : value)}
             disabled={isLoading}
           >
-            <SelectTrigger className="w-[180px] bg-input/50 border-border focus:ring-accent text-sm">
+            <SelectTrigger className="w-[180px] bg-input/50 border-border focus:ring-ring text-sm">
               <SelectValue placeholder="Translate Reply..." />
             </SelectTrigger>
             <SelectContent className="bg-popover border-border">
