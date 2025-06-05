@@ -34,10 +34,10 @@ export default function HistoryPage() {
         const parsedSessions: ChatSession[] = JSON.parse(storedSessionsJson).map(
           (session: any) => ({
             ...session,
-            messages: session.messages.map((msg: any) => ({
+            messages: Array.isArray(session.messages) ? session.messages.map((msg: any) => ({ // Check if session.messages is an array
               ...msg,
               timestamp: new Date(msg.timestamp),
-            })).filter((msg: Message) => !msg.isTyping), // Filter out typing indicators
+            })).filter((msg: Message) => !msg.isTyping) : [], // Default to empty array if not
             lastModified: new Date(session.lastModified),
           })
         );
