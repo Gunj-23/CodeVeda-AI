@@ -55,17 +55,40 @@ export default function HomePage() {
 
   // Save messages to localStorage whenever they change
   useEffect(() => {
-    // Do not save if it's just the pristine initial message AND localStorage is already cleared/empty.
-    // This prevents re-saving the initial message after "New Chat" action.
+    // This effect saves messages to localStorage.
+    // It has a special condition: Do not save if messages array contains only the
+    // initial bot message AND localStorage is currently empty or represents an empty array.
+    // This prevents the initial bot message from being written to localStorage
+    // immediately after a "New Chat" operation (which clears localStorage).
     if (messages.length === 1 && messages[0].id === initialMessageRef.current.id) {
-      const stored = localStorage.getItem(CHAT_MESSAGES_KEY);
-      if (!stored || JSON.parse(stored).length === 0) {
-        // If localStorage is empty or non-existent, don't save the initial message.
-        // It will be saved once actual conversation starts.
+      const storedJson = localStorage.getItem(CHAT_MESSAGES_KEY);
+      let isStoredJsonEffectivelyEmpty = !storedJson; // True if null or undefined
+
+      if (storedJson) {
+        try {
+          const parsed = JSON.parse(storedJson);
+          if (Array.isArray(parsed) && parsed.length === 0) {
+            isStoredJsonEffectivelyEmpty = true; // True if it's a stringified empty array '[]'
+          }
+          // If storedJson is not an empty array (e.g., has content, or is not an array like '{}'),
+          // isStoredJsonEffectivelyEmpty remains false (if !storedJson was false initially).
+        } catch (e) {
+          // If parsing fails, treat as if it's not an empty stored array for safety,
+          // allowing save to proceed to potentially overwrite corrupted data.
+          // isStoredJsonEffectivelyEmpty will remain false (if !storedJson was false initially).
+          console.warn("Could not parse localStorage for save check, considering it non-empty for save.", e);
+        }
+      }
+
+      if (isStoredJsonEffectivelyEmpty) {
+        // localStorage is genuinely empty/null OR contains a stringified empty array.
+        // In this state, and if current messages are just the initial bot message,
+        // do not save yet. It will be saved once actual conversation starts.
         return;
       }
     }
 
+    // Proceed to save if the above condition isn't met, or if messages are more than initial.
     if (messages.length > 0) {
       localStorage.setItem(CHAT_MESSAGES_KEY, JSON.stringify(messages));
     } else {
@@ -74,6 +97,7 @@ export default function HomePage() {
       localStorage.removeItem(CHAT_MESSAGES_KEY);
     }
   }, [messages]);
+
 
   const startNewChat = () => {
     localStorage.removeItem(CHAT_MESSAGES_KEY); // Clear storage first
@@ -113,14 +137,13 @@ export default function HomePage() {
 
     const userMessageText = text;
     
-    // Add user message optimistically
     const newUserMsg: Message = {
-      id: Date.now().toString() + "_user", // temporary unique ID
+      id: Date.now().toString() + "_user", 
       text: userMessageText,
       sender: 'user',
       timestamp: new Date(),
     };
-    // Get history *before* adding the current user message and typing indicator
+    
     const historyForAI = messages.filter(m => !m.isTyping && m.id !== initialMessageRef.current.id || (m.id === initialMessageRef.current.id && messages.length > 1));
 
 
