@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useCallback, ChangeEvent } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import MessageBubble from '@/components/chat/message-bubble';
 import type { Message, ChatSession } from '@/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -14,6 +14,7 @@ import AnimatedBackground from '@/components/common/animated-background';
 import { useToast } from '@/hooks/use-toast';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useRouter } from 'next/navigation';
+import { cn } from '@/lib/utils';
 
 
 const ALL_CHATS_KEY = 'codeVedaAllChats'; // Stores ChatSession[]
@@ -34,14 +35,14 @@ export default function HistoryPage() {
         const parsedSessions: ChatSession[] = JSON.parse(storedSessionsJson).map(
           (session: any) => ({
             ...session,
-            messages: Array.isArray(session.messages) ? session.messages.map((msg: any) => ({ // Check if session.messages is an array
+            messages: Array.isArray(session.messages) ? session.messages.map((msg: any) => ({ 
               ...msg,
               timestamp: new Date(msg.timestamp),
-            })).filter((msg: Message) => !msg.isTyping) : [], // Default to empty array if not
+            })).filter((msg: Message) => !msg.isTyping) : [], 
             lastModified: new Date(session.lastModified),
           })
         );
-        // Sort sessions by lastModified date, newest first
+        
         const sortedSessions = parsedSessions.sort((a,b) => b.lastModified.getTime() - a.lastModified.getTime());
         setAllChatSessions(sortedSessions.filter(session => session.messages.length > 0));
       } catch (error) {
@@ -70,7 +71,7 @@ export default function HistoryPage() {
       title: 'All Chat History Cleared',
       description: 'All your conversations have been removed.',
     });
-    router.push('/'); // Navigate to main page to start a new chat automatically
+    router.push('/'); 
   };
 
   const handleRename = (sessionId: string, currentTitle: string) => {
@@ -132,12 +133,24 @@ export default function HistoryPage() {
                   <AccordionItem value={session.id} key={session.id} className="border-b border-border/30 last:border-b-0">
                     <AccordionTrigger className="py-3 px-4 text-sm hover:bg-card/50 rounded-t-md">
                       <div className="flex justify-between items-center w-full">
-                        <span className="truncate max-w-[calc(100%-180px)]" title={session.title}>{session.title}</span>
+                        <span className="truncate max-w-[calc(100%-220px)] md:max-w-[calc(100%-180px)]" title={session.title}>{session.title}</span>
                         <div className="flex items-center gap-2">
                            <span className="text-xs text-muted-foreground mr-2">{session.messages.length} messages</span>
-                           <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); handleContinueChat(session.id);}} className="text-xs h-7 px-2 border-primary/50 hover:bg-primary/10">
+                           <div
+                             role="button"
+                             tabIndex={0}
+                             onClick={(e) => { e.stopPropagation(); handleContinueChat(session.id);}}
+                             onKeyDown={(e) => {
+                               if (e.key === 'Enter' || e.key === ' ') {
+                                 e.preventDefault();
+                                 e.stopPropagation();
+                                 handleContinueChat(session.id);
+                               }
+                             }}
+                             className={cn(buttonVariants({ size: "sm", variant: "outline" }), "text-xs h-7 px-2 border-primary/50 hover:bg-primary/10 cursor-pointer")}
+                           >
                              Continue Chat
-                           </Button>
+                           </div>
                         </div>
                       </div>
                     </AccordionTrigger>
@@ -162,7 +175,7 @@ export default function HistoryPage() {
                             </Button>
                           </div>
                         )}
-                        <ScrollArea className="h-[250px]"> {/* Inner scroll for long chats */}
+                        <ScrollArea className="h-[250px]"> 
                           <div className="space-y-3">
                             {session.messages.map((msg) => (
                               <MessageBubble key={msg.id} message={msg} />
