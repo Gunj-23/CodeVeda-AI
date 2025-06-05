@@ -4,7 +4,7 @@
 import { chatFlow, type ChatFlowInput, type ChatFlowOutput } from '@/ai/flows/chat-flow';
 import { translateResponse, type TranslateResponseInput, type TranslateResponseOutput } from '@/ai/flows/translate-response';
 import { generateImagePrompt, type GenerateImagePromptInput, type GenerateImagePromptOutput } from '@/ai/flows/generate-image-prompt';
-// import { generateActualImage, type GenerateActualImageInput, type GenerateActualImageOutput } from '@/ai/flows/generate-actual-image-flow'; // Temporarily commented out
+import { generateActualImage, type GenerateActualImageInput, type GenerateActualImageOutput } from '@/ai/flows/generate-actual-image-flow';
 import type { Message } from '@/types';
 
 export async function getChatResponseAction(
@@ -38,19 +38,10 @@ export async function generateImageQueryAction(
   return generateImagePrompt(input);
 }
 
-/* // Temporarily commented out
 export async function generateActualImageAction(
   prompt: string
 ): Promise<GenerateActualImageOutput> {
   const input: GenerateActualImageInput = { prompt };
   return generateActualImage(input);
 }
-*/
 
-// Placeholder for generateActualImageAction if needed by page.tsx structure, though it won't be called with current logic.
-export async function generateActualImageAction(
-  prompt: string
-): Promise<{ imageDataUri: string }> {
-  console.warn("generateActualImageAction is temporarily disabled. Returning placeholder.");
-  return { imageDataUri: `https://placehold.co/300x200.png?text=Actual+Image+Disabled` };
-}

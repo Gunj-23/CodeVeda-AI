@@ -1,9 +1,10 @@
 
 import type { Message } from '@/types';
-import { Bot, User } from 'lucide-react';
+import { Bot, User, Download } from 'lucide-react';
 import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 interface MessageBubbleProps {
   message: Message;
@@ -19,12 +20,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
     if (isUser) {
       return <User className={`w-8 h-8 p-1.5 rounded-full bg-primary text-primary-foreground flex-shrink-0`} />;
     }
-    // For bot, use placeholder avatar if no specific imageUrl is set for a robot avatar (e.g. initial message)
-    // but prefer message.avatarUrl if we want to set a specific avatar for the bot on a per-message basis (not used yet)
-    const botAvatarSrc = message.avatarUrl || "https://placehold.co/40x40.png";
-    const botAltText = message.avatarUrl ? "Bot avatar" : "Default bot avatar placeholder";
-    const botHint = message.avatarUrl ? undefined : "bot icon";
-
+    const botAvatarSrc = "https://placehold.co/40x40.png";
+    const botAltText = "Bot avatar placeholder";
 
     return (
       <Image
@@ -33,7 +30,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
         width={40}
         height={40}
         className="w-8 h-8 rounded-full flex-shrink-0 object-cover border border-accent"
-        data-ai-hint={botHint}
+        data-ai-hint="bot icon"
       />
     );
   };
@@ -70,7 +67,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
                   <p className="text-xs font-medium">Image based on prompt:</p>
                   <Badge variant="secondary" className="my-1 text-xs">{message.imagePrompt}</Badge>
                   {message.imageUrl && (
-                     <div>
+                     <div className="mt-1">
                       <Image
                         src={message.imageUrl}
                         alt={message.imagePrompt ? `AI generated image for: ${message.imagePrompt}` : "AI generated image"}
@@ -78,6 +75,19 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
                         height={200}
                         className="rounded-md border border-border object-cover"
                       />
+                      {message.imageUrl.startsWith('data:image/') && (
+                        <a
+                          href={message.imageUrl}
+                          download={`codeveda-ai-${message.id.substring(0,8)}.png`}
+                          className="mt-2 inline-flex items-center"
+                          aria-label="Download generated image"
+                        >
+                          <Button variant="outline" size="sm" className="bg-card/70 hover:bg-card">
+                            <Download className="mr-2 h-4 w-4" />
+                            Download Image
+                          </Button>
+                        </a>
+                      )}
                      </div>
                   )}
                 </div>
