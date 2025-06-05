@@ -14,16 +14,19 @@ import { useToast } from '@/hooks/use-toast';
 const CHAT_MESSAGES_KEY = 'chatMessages';
 
 export default function HomePage() {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const initialMessage: Message = {
+  // Use a ref for initialMessage to ensure stable identity if it were complex
+  const initialMessageRef = useRef<Message>({
     id: 'initial-bot-message',
     text: "Welcome to CodeVeda AI! I'm your futuristic AI assistant. How can I help you today?",
     sender: 'bot',
     timestamp: new Date(),
-  };
+  });
+
+  const [messages, setMessages] = useState<Message[]>([initialMessageRef.current]);
+  const [isLoading, setIsLoading] = useState(false);
+
 
   // Load messages from localStorage on initial render
   useEffect(() => {
@@ -39,32 +42,47 @@ export default function HomePage() {
         if (parsedMessages.length > 0) {
           setMessages(parsedMessages);
         } else {
-          setMessages([initialMessage]); // Fallback if localStorage had empty array
+          setMessages([initialMessageRef.current]); // Fallback if localStorage had empty array
         }
       } catch (error) {
         console.error('Error parsing messages from localStorage:', error);
-        setMessages([initialMessage]); // Fallback on error
+        setMessages([initialMessageRef.current]); // Fallback on error
       }
     } else {
-      setMessages([initialMessage]); // No stored messages, use initial
+      setMessages([initialMessageRef.current]); // No stored messages, use initial
     }
-  }, []);
+  }, []); // Empty dependency array: run only once on mount
 
   // Save messages to localStorage whenever they change
   useEffect(() => {
-    // Avoid saving if messages array is empty or only contains the initial message
-    // and that initial message hasn't been interacted with yet.
+    // Do not save if it's just the pristine initial message AND localStorage is already cleared/empty.
+    // This prevents re-saving the initial message after "New Chat" action.
+    if (messages.length === 1 && messages[0].id === initialMessageRef.current.id) {
+      const stored = localStorage.getItem(CHAT_MESSAGES_KEY);
+      if (!stored || JSON.parse(stored).length === 0) {
+        // If localStorage is empty or non-existent, don't save the initial message.
+        // It will be saved once actual conversation starts.
+        return;
+      }
+    }
+
     if (messages.length > 0) {
-        // Only save if it's not the pristine initial state or if there's more than one message.
-        if (messages.length > 1 || (messages.length === 1 && messages[0].id !== 'initial-bot-message') || (messages.length === 1 && messages[0].id === 'initial-bot-message' && localStorage.getItem(CHAT_MESSAGES_KEY) !== null )) {
-            localStorage.setItem(CHAT_MESSAGES_KEY, JSON.stringify(messages));
-        }
-    } else if (messages.length === 0 && localStorage.getItem(CHAT_MESSAGES_KEY) !== null) {
-        // If messages are cleared, clear localStorage too.
-        localStorage.removeItem(CHAT_MESSAGES_KEY);
+      localStorage.setItem(CHAT_MESSAGES_KEY, JSON.stringify(messages));
+    } else {
+      // This case should ideally not be reached if we always reset to initialMessage.
+      // But if messages somehow becomes an empty array, clear storage.
+      localStorage.removeItem(CHAT_MESSAGES_KEY);
     }
   }, [messages]);
 
+  const startNewChat = () => {
+    localStorage.removeItem(CHAT_MESSAGES_KEY); // Clear storage first
+    setMessages([initialMessageRef.current]);   // Reset state to initial message
+    toast({
+      title: "New Chat Started",
+      description: "The conversation has been cleared.",
+    });
+  };
 
   const addMessage = (newMessageOmitIdTimestamp: Omit<Message, 'id' | 'timestamp'>) => {
     const newMessage: Message = {
@@ -94,16 +112,21 @@ export default function HomePage() {
     if (!text.trim() && !isImageMode) return;
 
     const userMessageText = text;
-    const currentMessagesForUserDisplay = [...messages]; // Capture current messages before adding the user's new one for history
+    
+    // Add user message optimistically
+    const newUserMsg: Message = {
+      id: Date.now().toString() + "_user", // temporary unique ID
+      text: userMessageText,
+      sender: 'user',
+      timestamp: new Date(),
+    };
+    // Get history *before* adding the current user message and typing indicator
+    const historyForAI = messages.filter(m => !m.isTyping && m.id !== initialMessageRef.current.id || (m.id === initialMessageRef.current.id && messages.length > 1));
 
-    addMessage({ text: userMessageText, sender: 'user' });
 
+    setMessages(prev => [...prev, newUserMsg]);
     setIsLoading(true);
     addTypingIndicator();
-
-    // Use currentMessagesForUserDisplay for AI history, which doesn't include the latest user message yet.
-    // The AI flow will add the latest user input separately.
-    const historyForAI = currentMessagesForUserDisplay.filter(m => !m.isTyping);
 
 
     try {
@@ -184,7 +207,7 @@ export default function HomePage() {
   return (
     <div className="flex flex-col h-screen max-h-screen overflow-hidden">
       <AnimatedBackground />
-      <AppHeader />
+      <AppHeader onNewChat={startNewChat} />
       <main className="flex-grow flex flex-col container mx-auto px-4 pb-4 overflow-hidden">
         <ChatWindow messages={messages} />
         <ChatInputArea
