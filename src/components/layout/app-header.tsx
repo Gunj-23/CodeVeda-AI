@@ -6,21 +6,56 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { MessageSquareText, PlusCircle, History } from 'lucide-react';
 import { usePathname } from 'next/navigation';
+import type { Message } from '@/types'; // Import Message type
+
+const ALL_CHATS_KEY = 'codeVedaAllChats';
+
+const createInitialMessage = (): Message => ({ // Helper function to create initial message
+  id: Date.now().toString() + '_initial_bot_header',
+  text: "Welcome to CodeVeda AI! I'm your futuristic AI assistant. How can I help you today?",
+  sender: 'bot',
+  timestamp: new Date(),
+});
 
 interface AppHeaderProps {
-  onNewChat?: () => void; // Optional: for triggering new chat from main page context
+  onNewChat?: () => void;
 }
 
 const AppHeader: React.FC<AppHeaderProps> = ({ onNewChat }) => {
   const pathname = usePathname();
 
   const handleNewChatClick = () => {
-    if (onNewChat) {
+    if (onNewChat && pathname === '/') { // If onNewChat is provided (from main page)
       onNewChat();
-    } else if (typeof window !== 'undefined') {
-      // Fallback for history page or if onNewChat is not provided from main page
-      localStorage.removeItem('chatMessages'); // CHAT_MESSAGES_KEY
-      window.location.href = '/'; // Navigate and force reload of main page
+    } else { // If on history page or onNewChat is not available from main page context
+      const storedSessionsJson = localStorage.getItem(ALL_CHATS_KEY);
+      let allSessions: Message[][] = [];
+      if (storedSessionsJson) {
+        try {
+          allSessions = JSON.parse(storedSessionsJson);
+        } catch (error) {
+          console.error('Error parsing sessions for new chat from header:', error);
+          allSessions = []; // Start fresh if parsing fails
+        }
+      }
+      const newInitialMsg = createInitialMessage();
+      
+      // Check if the current last chat is just the initial bot message
+      if (allSessions.length > 0) {
+        const lastChat = allSessions[allSessions.length - 1];
+        if (lastChat.length === 1 && lastChat[0].sender === 'bot' && lastChat[0].text === newInitialMsg.text) {
+             allSessions[allSessions.length - 1] = [newInitialMsg];
+        } else {
+            allSessions.push([newInitialMsg]);
+        }
+      } else {
+          allSessions.push([newInitialMsg]);
+      }
+      localStorage.setItem(ALL_CHATS_KEY, JSON.stringify(allSessions));
+      
+      if (typeof window !== 'undefined') {
+        window.location.href = '/'; // Navigate and force reload of main page to load the new session
+      }
     }
   };
 

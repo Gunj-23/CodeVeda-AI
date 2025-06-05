@@ -1,73 +1,95 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import MessageBubble from '@/components/chat/message-bubble';
 import type { Message } from '@/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ArrowLeft, Trash2, MessageSquareText } from 'lucide-react';
-import AppHeader from '@/components/layout/app-header'; // Re-use AppHeader
+import { ArrowLeft, Trash2, MessageSquareText, ChevronDown, ChevronUp } from 'lucide-react';
+import AppHeader from '@/components/layout/app-header';
 import AnimatedBackground from '@/components/common/animated-background';
 import { useToast } from '@/hooks/use-toast';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
-const CHAT_MESSAGES_KEY = 'chatMessages';
+const ALL_CHATS_KEY = 'codeVedaAllChats';
 
 export default function HistoryPage() {
-  const [historyMessages, setHistoryMessages] = useState<Message[]>([]);
+  const [allChatSessions, setAllChatSessions] = useState<Message[][]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
-  useEffect(() => {
-    const storedMessagesJson = localStorage.getItem(CHAT_MESSAGES_KEY);
-    if (storedMessagesJson) {
+  const loadHistory = useCallback(() => {
+    setIsLoading(true);
+    const storedSessionsJson = localStorage.getItem(ALL_CHATS_KEY);
+    if (storedSessionsJson) {
       try {
-        const parsedMessages: Message[] = JSON.parse(storedMessagesJson).map(
-          (msg: any) => ({
-            ...msg,
-            timestamp: new Date(msg.timestamp), // Revive Date objects
-          })
+        const parsedSessions: Message[][] = JSON.parse(storedSessionsJson).map(
+          (session: any[]) =>
+            session.map((msg: any) => ({
+              ...msg,
+              timestamp: new Date(msg.timestamp),
+            })).filter(msg => !msg.isTyping) // Filter out typing indicators from stored history
         );
-        // Filter out any typing indicators that might have been saved
-        setHistoryMessages(parsedMessages.filter(msg => !msg.isTyping));
+        setAllChatSessions(parsedSessions.filter(session => session.length > 0)); // Only keep non-empty sessions
       } catch (error) {
-        console.error('Error parsing messages from localStorage:', error);
-        setHistoryMessages([]);
+        console.error('Error parsing sessions from localStorage:', error);
+        setAllChatSessions([]);
         toast({
           title: 'Error loading history',
-          description: 'Could not parse saved chat messages.',
+          description: 'Could not parse saved chat sessions.',
           variant: 'destructive',
         });
       }
+    } else {
+      setAllChatSessions([]);
     }
     setIsLoading(false);
   }, [toast]);
 
-  const handleStartNewChat = () => {
-    localStorage.removeItem(CHAT_MESSAGES_KEY);
-    setHistoryMessages([]); // Clear displayed history on this page
+  useEffect(() => {
+    loadHistory();
+  }, [loadHistory]);
+
+  const handleClearAllHistory = () => {
+    localStorage.removeItem(ALL_CHATS_KEY);
+    setAllChatSessions([]);
     toast({
-      title: 'New Chat Started',
-      description: 'Previous chat history has been cleared.',
+      title: 'All Chat History Cleared',
+      description: 'All your conversations have been removed.',
     });
-    // Optionally redirect to main chat page
+    // Optionally, redirect to main page to start a new chat automatically
     if (typeof window !== 'undefined') {
         window.location.href = '/';
     }
   };
 
+  const getSessionTitle = (session: Message[]): string => {
+    if (session.length === 0) return "Empty Chat";
+    const firstUserMessage = session.find(msg => msg.sender === 'user');
+    const firstMessage = session[0];
+    const date = new Date(firstMessage.timestamp);
+    const formattedDate = date.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' });
+    const formattedTime = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    if (firstUserMessage) {
+      return `Chat from ${formattedDate} at ${formattedTime} ("${firstUserMessage.text.substring(0, 30)}${firstUserMessage.text.length > 30 ? '...' : ''}")`;
+    }
+    return `Chat from ${formattedDate} at ${formattedTime}`;
+  };
+
+
   return (
     <div className="flex flex-col h-screen max-h-screen overflow-hidden">
       <AnimatedBackground />
-      {/* Pass handleStartNewChat to AppHeader if it should also trigger this page's new chat logic */}
-      <AppHeader onNewChat={handleStartNewChat} /> 
+      <AppHeader /> 
       <main className="flex-grow flex flex-col container mx-auto px-4 pb-4 overflow-hidden">
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-headline neon-text-primary">Chat History</h2>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={handleStartNewChat} className="border-destructive text-destructive hover:bg-destructive/10">
-              <Trash2 size={16} className="mr-2" /> Clear History & Start New
+            <Button variant="outline" onClick={handleClearAllHistory} className="border-destructive text-destructive hover:bg-destructive/10">
+              <Trash2 size={16} className="mr-2" /> Clear All History
             </Button>
             <Link href="/" passHref>
               <Button variant="ghost" className="neon-text-accent hover:bg-accent/20">
@@ -78,24 +100,42 @@ export default function HistoryPage() {
         </div>
 
         {isLoading ? (
-          <p className="text-center py-10">Loading history...</p>
-        ) : historyMessages.length > 0 ? (
-          <ScrollArea className="flex-grow h-[calc(100vh-280px)] p-4 glassmorphic rounded-lg shadow-lg">
-            <div className="space-y-4">
-              {historyMessages.map((msg) => (
-                <MessageBubble key={msg.id} message={msg} />
+          <p className="text-center py-10 text-lg">Loading history...</p>
+        ) : allChatSessions.length > 0 ? (
+          <ScrollArea className="flex-grow h-[calc(100vh-280px)] glassmorphic rounded-lg shadow-lg p-1">
+            <Accordion type="multiple" className="w-full">
+              {allChatSessions.map((session, index) => (
+                session.length > 0 && ( // Ensure session is not empty
+                  <AccordionItem value={`session-${index}`} key={`session-key-${index}`} className="border-b border-border/30 last:border-b-0">
+                    <AccordionTrigger className="py-3 px-4 text-sm hover:bg-card/50 rounded-t-md">
+                      <div className="flex justify-between items-center w-full">
+                        <span>{getSessionTitle(session)}</span>
+                        <span className="text-xs text-muted-foreground mr-2">{session.length} messages</span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="bg-card/20 p-0 rounded-b-md">
+                      <ScrollArea className="h-[300px] p-4"> {/* Inner scroll for long chats */}
+                        <div className="space-y-3">
+                          {session.map((msg) => (
+                            <MessageBubble key={msg.id} message={msg} />
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    </AccordionContent>
+                  </AccordionItem>
+                )
               ))}
-            </div>
+            </Accordion>
           </ScrollArea>
         ) : (
-          <div className="flex-grow flex flex-col items-center justify-center text-center p-4 glassmorphic rounded-lg shadow-lg">
-            <MessageSquareText size={64} className="text-muted-foreground opacity-50 mb-4" />
-            <h3 className="text-xl font-semibold text-muted-foreground mb-2">No Chat History Found</h3>
-            <p className="text-muted-foreground mb-4">
-              Your conversations will appear here once you start chatting.
+          <div className="flex-grow flex flex-col items-center justify-center text-center p-6 glassmorphic rounded-lg shadow-lg">
+            <MessageSquareText size={72} className="text-muted-foreground opacity-40 mb-6" />
+            <h3 className="text-xl font-semibold text-muted-foreground mb-3">No Chat History Found</h3>
+            <p className="text-muted-foreground mb-6 max-w-md">
+              Your past conversations will appear here. Start a new chat to see your history grow!
             </p>
             <Link href="/" passHref>
-              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground neon-glow-primary">
+              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground neon-glow-primary px-6 py-3 text-base">
                 Start a Conversation
               </Button>
             </Link>

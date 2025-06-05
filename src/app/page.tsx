@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import AnimatedBackground from '@/components/common/animated-background';
 import AppHeader from '@/components/layout/app-header';
 import ChatWindow from '@/components/chat/chat-window';
@@ -11,82 +11,116 @@ import { LANGUAGES } from '@/types';
 import { getChatResponseAction, translateTextAction, generateImageQueryAction, generateActualImageAction } from './actions';
 import { useToast } from '@/hooks/use-toast';
 
-const CHAT_MESSAGES_KEY = 'chatMessages';
+const ALL_CHATS_KEY = 'codeVedaAllChats'; // Array of Message[]
+
+const createInitialMessage = (): Message => ({
+  id: Date.now().toString() + '_initial_bot',
+  text: "Welcome to CodeVeda AI! I'm your futuristic AI assistant. How can I help you today?",
+  sender: 'bot',
+  timestamp: new Date(),
+});
 
 export default function HomePage() {
   const { toast } = useToast();
-
-  const initialMessageRef = useRef<Message>({
-    id: 'initial-bot-message',
-    text: "Welcome to CodeVeda AI! I'm your futuristic AI assistant. How can I help you today?",
-    sender: 'bot',
-    timestamp: new Date(),
-  });
-
-  const [messages, setMessages] = useState<Message[]>([initialMessageRef.current]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    const storedMessagesJson = localStorage.getItem(CHAT_MESSAGES_KEY);
-    if (storedMessagesJson) {
+  const loadLatestChat = useCallback(() => {
+    const storedSessionsJson = localStorage.getItem(ALL_CHATS_KEY);
+    if (storedSessionsJson) {
       try {
-        const parsedMessages: Message[] = JSON.parse(storedMessagesJson).map(
-          (msg: any) => ({
+        const allSessions: Message[][] = JSON.parse(storedSessionsJson).map((session: any[]) =>
+          session.map((msg: any) => ({
             ...msg,
-            timestamp: new Date(msg.timestamp), 
-          })
+            timestamp: new Date(msg.timestamp),
+          }))
         );
-        if (parsedMessages.length > 0) {
-          setMessages(parsedMessages);
-        } else {
-          setMessages([initialMessageRef.current]); 
+        if (allSessions.length > 0) {
+          setMessages(allSessions[allSessions.length - 1]);
+          return;
         }
       } catch (error) {
-        console.error('Error parsing messages from localStorage:', error);
-        setMessages([initialMessageRef.current]); 
+        console.error('Error parsing sessions from localStorage:', error);
       }
-    } else {
-      setMessages([initialMessageRef.current]); 
     }
-  }, []); 
+    // If no valid sessions or error, start a new one
+    const newInitialMsg = createInitialMessage();
+    setMessages([newInitialMsg]);
+    localStorage.setItem(ALL_CHATS_KEY, JSON.stringify([[newInitialMsg]]));
+  }, []);
 
   useEffect(() => {
-    if (messages.length === 1 && messages[0].id === initialMessageRef.current.id) {
-      const storedJson = localStorage.getItem(CHAT_MESSAGES_KEY);
-      let isStoredJsonEffectivelyEmpty = !storedJson; 
+    loadLatestChat();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Load on initial mount
 
-      if (storedJson) {
+  useEffect(() => {
+    // Save current messages to the last session
+    if (messages.length > 0) {
+      const storedSessionsJson = localStorage.getItem(ALL_CHATS_KEY);
+      let allSessions: Message[][] = [];
+      if (storedSessionsJson) {
         try {
-          const parsed = JSON.parse(storedJson);
-          if (Array.isArray(parsed) && parsed.length === 0) {
-            isStoredJsonEffectivelyEmpty = true; 
-          }
-        } catch (e) {
-          console.warn("Could not parse localStorage for save check, considering it non-empty for save.", e);
+          allSessions = JSON.parse(storedSessionsJson).map((session: any[]) =>
+            session.map((msg: any) => ({
+              ...msg,
+              timestamp: new Date(msg.timestamp), // Ensure timestamps are Date objects
+            }))
+          );
+        } catch (error) {
+          console.error('Error parsing sessions for saving:', error);
+          // Potentially corrupted data, might be safer to start fresh or handle error
         }
       }
 
-      if (isStoredJsonEffectivelyEmpty) {
-        return;
+      if (allSessions.length === 0) {
+        // This case should ideally be handled by initial load, but as a fallback:
+        allSessions.push(messages);
+      } else {
+        allSessions[allSessions.length - 1] = messages;
       }
-    }
-
-    if (messages.length > 0) {
-      localStorage.setItem(CHAT_MESSAGES_KEY, JSON.stringify(messages));
-    } else {
-      localStorage.removeItem(CHAT_MESSAGES_KEY);
+      localStorage.setItem(ALL_CHATS_KEY, JSON.stringify(allSessions));
     }
   }, [messages]);
 
 
-  const startNewChat = () => {
-    localStorage.removeItem(CHAT_MESSAGES_KEY); 
-    setMessages([initialMessageRef.current]);   
+  const startNewChat = useCallback(() => {
+    const newInitialMsg = createInitialMessage();
+    const storedSessionsJson = localStorage.getItem(ALL_CHATS_KEY);
+    let allSessions: Message[][] = [];
+    if (storedSessionsJson) {
+      try {
+        allSessions = JSON.parse(storedSessionsJson).map((session: any[]) =>
+          session.map((msg: any) => ({
+            ...msg,
+            timestamp: new Date(msg.timestamp),
+          }))
+        );
+      } catch (error) {
+        console.error('Error parsing sessions for new chat:', error);
+      }
+    }
+    
+    // Check if the current last chat is just the initial bot message
+    if (allSessions.length > 0) {
+        const lastChat = allSessions[allSessions.length - 1];
+        if (lastChat.length === 1 && lastChat[0].sender === 'bot' && lastChat[0].text === newInitialMsg.text) {
+            // If last chat is just the initial message, replace it instead of adding new
+             allSessions[allSessions.length - 1] = [newInitialMsg];
+        } else {
+            allSessions.push([newInitialMsg]);
+        }
+    } else {
+        allSessions.push([newInitialMsg]);
+    }
+
+    localStorage.setItem(ALL_CHATS_KEY, JSON.stringify(allSessions));
+    setMessages([newInitialMsg]);
     toast({
       title: "New Chat Started",
-      description: "The conversation has been cleared.",
+      description: "A new conversation has begun.",
     });
-  };
+  }, [toast]);
 
   const addMessage = (newMessageOmitIdTimestamp: Omit<Message, 'id' | 'timestamp'>) => {
     const newMessage: Message = {
@@ -94,7 +128,7 @@ export default function HomePage() {
       id: Date.now().toString() + Math.random().toString(36).substring(2, 15),
       timestamp: new Date(),
     };
-    setMessages(prev => [...prev, newMessage]);
+    setMessages(prev => [...prev.filter(m => !m.isTyping), newMessage]); // Remove typing before adding new
   };
 
   const addTypingIndicator = () => {
@@ -124,9 +158,14 @@ export default function HomePage() {
       timestamp: new Date(),
     };
     
-    const historyForAI = messages.filter(m => !m.isTyping && m.id !== initialMessageRef.current.id || (m.id === initialMessageRef.current.id && messages.length > 1));
+    // History for AI should be the current messages state, excluding initial bot if it's the only one.
+    // And ensure no typing indicators are sent.
+    const currentMessagesForHistory = messages.filter(m => !m.isTyping);
+    const historyForAI = currentMessagesForHistory.length === 1 && currentMessagesForHistory[0].sender === 'bot'
+        ? [] 
+        : currentMessagesForHistory;
 
-    setMessages(prev => [...prev, newUserMsg]);
+    setMessages(prev => [...prev.filter(m => !m.isTyping), newUserMsg]); // Add new user message, remove typing
     setIsLoading(true);
     addTypingIndicator();
 
@@ -170,7 +209,7 @@ export default function HomePage() {
           });
           toast({
             title: toastTitle,
-            description: actualImageResult.error, // Show the specific AI error from the result
+            description: actualImageResult.error, 
             variant: 'destructive',
           });
         } else if (actualImageResult.imageDataUri) {
@@ -181,7 +220,6 @@ export default function HomePage() {
             imageUrl: actualImageResult.imageDataUri,
           });
         } else {
-           // Fallback if neither error nor imageDataUri is present (should not happen with new flow logic)
            addMessage({ sender: 'bot', text: "Sorry, something went wrong with image generation." });
            toast({ title: 'Image Generation Error', description: 'Unexpected issue during image processing.', variant: 'destructive' });
         }
@@ -215,7 +253,7 @@ export default function HomePage() {
           translatedText: translatedTextForBot,
         });
       }
-    } catch (error) { // This catch block now primarily handles errors from chatFlow, translateTextAction, or generateImageQueryAction
+    } catch (error) { 
       console.error('Error processing message (outer catch):', error);
       removeTypingIndicator();
       
