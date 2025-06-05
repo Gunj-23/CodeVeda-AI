@@ -11,6 +11,8 @@ import { LANGUAGES } from '@/types';
 import { getChatResponseAction, translateTextAction, generateImageQueryAction, generateActualImageAction } from './actions';
 import { useToast } from '@/hooks/use-toast';
 
+const CHAT_MESSAGES_KEY = 'chatMessages';
+
 export default function HomePage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -23,20 +25,56 @@ export default function HomePage() {
     timestamp: new Date(),
   };
 
+  // Load messages from localStorage on initial render
   useEffect(() => {
-    setMessages([initialMessage]);
+    const storedMessagesJson = localStorage.getItem(CHAT_MESSAGES_KEY);
+    if (storedMessagesJson) {
+      try {
+        const parsedMessages: Message[] = JSON.parse(storedMessagesJson).map(
+          (msg: any) => ({
+            ...msg,
+            timestamp: new Date(msg.timestamp), // Revive Date objects
+          })
+        );
+        if (parsedMessages.length > 0) {
+          setMessages(parsedMessages);
+        } else {
+          setMessages([initialMessage]); // Fallback if localStorage had empty array
+        }
+      } catch (error) {
+        console.error('Error parsing messages from localStorage:', error);
+        setMessages([initialMessage]); // Fallback on error
+      }
+    } else {
+      setMessages([initialMessage]); // No stored messages, use initial
+    }
   }, []);
+
+  // Save messages to localStorage whenever they change
+  useEffect(() => {
+    // Avoid saving if messages array is empty or only contains the initial message
+    // and that initial message hasn't been interacted with yet.
+    if (messages.length > 0) {
+        // Only save if it's not the pristine initial state or if there's more than one message.
+        if (messages.length > 1 || (messages.length === 1 && messages[0].id !== 'initial-bot-message') || (messages.length === 1 && messages[0].id === 'initial-bot-message' && localStorage.getItem(CHAT_MESSAGES_KEY) !== null )) {
+            localStorage.setItem(CHAT_MESSAGES_KEY, JSON.stringify(messages));
+        }
+    } else if (messages.length === 0 && localStorage.getItem(CHAT_MESSAGES_KEY) !== null) {
+        // If messages are cleared, clear localStorage too.
+        localStorage.removeItem(CHAT_MESSAGES_KEY);
+    }
+  }, [messages]);
 
 
   const addMessage = (newMessageOmitIdTimestamp: Omit<Message, 'id' | 'timestamp'>) => {
     const newMessage: Message = {
       ...newMessageOmitIdTimestamp,
-      id: Date.now().toString() + Math.random().toString(36).substring(2, 15), 
+      id: Date.now().toString() + Math.random().toString(36).substring(2, 15),
       timestamp: new Date(),
     };
     setMessages(prev => [...prev, newMessage]);
   };
-  
+
   const addTypingIndicator = () => {
     const typingMessage: Message = {
       id: 'typing-indicator',
@@ -55,14 +93,18 @@ export default function HomePage() {
   const handleSendMessage = async (text: string, isImageMode: boolean, language: string | null) => {
     if (!text.trim() && !isImageMode) return;
 
-    const userMessageText = text; 
-
-    const historyForAI = messages.filter(m => !m.isTyping);
+    const userMessageText = text;
+    const currentMessagesForUserDisplay = [...messages]; // Capture current messages before adding the user's new one for history
 
     addMessage({ text: userMessageText, sender: 'user' });
-    
+
     setIsLoading(true);
     addTypingIndicator();
+
+    // Use currentMessagesForUserDisplay for AI history, which doesn't include the latest user message yet.
+    // The AI flow will add the latest user input separately.
+    const historyForAI = currentMessagesForUserDisplay.filter(m => !m.isTyping);
+
 
     try {
       if (isImageMode) {
@@ -83,14 +125,14 @@ export default function HomePage() {
             setIsLoading(false);
             return;
         }
-        
+
         const actualImageResult = await generateActualImageAction(enhancedPrompt);
         removeTypingIndicator();
         addMessage({
           sender: 'bot',
           text: `Here's the image I generated based on the prompt: "${enhancedPrompt}"`,
           imagePrompt: enhancedPrompt,
-          imageUrl: actualImageResult.imageDataUri, 
+          imageUrl: actualImageResult.imageDataUri,
         });
       } else {
         const chatResponse = await getChatResponseAction(userMessageText, historyForAI);
@@ -98,7 +140,7 @@ export default function HomePage() {
         let originalTextForBot;
         let translatedTextForBot;
 
-        if (language && language !== 'en' && botText) { 
+        if (language && language !== 'en' && botText) {
           originalTextForBot = botText;
           try {
             const translationResult = await translateTextAction(botText, language);

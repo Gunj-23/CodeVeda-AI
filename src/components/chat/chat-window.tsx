@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Message } from '@/types';
@@ -10,18 +11,22 @@ interface ChatWindowProps {
 }
 
 const ChatWindow: React.FC<ChatWindowProps> = ({ messages }) => {
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (viewportRef.current) {
-      viewportRef.current.scrollTop = viewportRef.current.scrollHeight;
+      // Using setTimeout to ensure DOM update is complete before scrolling
+      setTimeout(() => {
+        if (viewportRef.current) {
+           viewportRef.current.scrollTop = viewportRef.current.scrollHeight;
+        }
+      }, 0);
     }
   }, [messages]);
 
   return (
-    <ScrollArea className="flex-grow h-[calc(100vh-250px)] md:h-[calc(100vh-220px)] p-4 glassmorphic rounded-lg shadow-lg mb-4" ref={scrollAreaRef}>
-       <div ref={viewportRef} className="h-full">
+    <ScrollArea className="flex-grow h-[calc(100vh-250px)] md:h-[calc(100vh-220px)] p-4 glassmorphic rounded-lg shadow-lg mb-4">
+       <div ref={viewportRef} className="h-full overflow-y-auto"> {/* Ensure this div is the one that actually scrolls if ScrollArea isn't doing it directly */}
         {messages.map((msg) => (
           <MessageBubble key={msg.id} message={msg} />
         ))}
