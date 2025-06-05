@@ -5,57 +5,64 @@ import React from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { MessageSquareText, PlusCircle, History } from 'lucide-react';
-import { usePathname } from 'next/navigation';
-import type { Message } from '@/types'; // Import Message type
+import { usePathname, useRouter } from 'next/navigation';
+import type { ChatSession, Message } from '@/types'; 
 
-const ALL_CHATS_KEY = 'codeVedaAllChats';
+const ALL_CHATS_KEY = 'codeVedaAllChats'; // Stores ChatSession[]
 
-const createInitialMessage = (): Message => ({ // Helper function to create initial message
+const createInitialMessageForHeader = (): Message => ({ 
   id: Date.now().toString() + '_initial_bot_header',
   text: "Welcome to CodeVeda AI! I'm your futuristic AI assistant. How can I help you today?",
   sender: 'bot',
   timestamp: new Date(),
 });
 
+const createNewSessionForHeader = (title?: string): ChatSession => {
+  const newId = `session-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+  return {
+    id: newId,
+    title: title || `New Chat ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit'})}`,
+    messages: [createInitialMessageForHeader()],
+    lastModified: new Date(),
+  };
+};
+
 interface AppHeaderProps {
-  onNewChat?: () => void;
+  onNewChat?: () => void; // Propagated from page.tsx for handling new chat on main page
 }
 
 const AppHeader: React.FC<AppHeaderProps> = ({ onNewChat }) => {
   const pathname = usePathname();
+  const router = useRouter();
 
   const handleNewChatClick = () => {
-    if (onNewChat && pathname === '/') { // If onNewChat is provided (from main page)
+    if (onNewChat && pathname === '/') { 
       onNewChat();
-    } else { // If on history page or onNewChat is not available from main page context
+    } else { 
+      // This logic is for when "New Chat" is clicked from history page or if onNewChat isn't available.
+      // It creates a new session, saves it, and navigates to main page, making it active.
       const storedSessionsJson = localStorage.getItem(ALL_CHATS_KEY);
-      let allSessions: Message[][] = [];
+      let allSessions: ChatSession[] = [];
       if (storedSessionsJson) {
         try {
-          allSessions = JSON.parse(storedSessionsJson);
+          // Assuming new format ChatSession[] is stored
+          allSessions = JSON.parse(storedSessionsJson).map((s: any) => ({
+            ...s,
+            messages: s.messages.map((m: any) => ({...m, timestamp: new Date(m.timestamp)})),
+            lastModified: new Date(s.lastModified)
+          }));
         } catch (error) {
           console.error('Error parsing sessions for new chat from header:', error);
-          allSessions = []; // Start fresh if parsing fails
+          allSessions = []; 
         }
       }
-      const newInitialMsg = createInitialMessage();
       
-      // Check if the current last chat is just the initial bot message
-      if (allSessions.length > 0) {
-        const lastChat = allSessions[allSessions.length - 1];
-        if (lastChat.length === 1 && lastChat[0].sender === 'bot' && lastChat[0].text === newInitialMsg.text) {
-             allSessions[allSessions.length - 1] = [newInitialMsg];
-        } else {
-            allSessions.push([newInitialMsg]);
-        }
-      } else {
-          allSessions.push([newInitialMsg]);
-      }
+      const newSession = createNewSessionForHeader();
+      allSessions.push(newSession);
       localStorage.setItem(ALL_CHATS_KEY, JSON.stringify(allSessions));
       
-      if (typeof window !== 'undefined') {
-        window.location.href = '/'; // Navigate and force reload of main page to load the new session
-      }
+      // Navigate to main page, passing the new session ID so it becomes active
+      router.push(`/?sessionId=${newSession.id}`);
     }
   };
 

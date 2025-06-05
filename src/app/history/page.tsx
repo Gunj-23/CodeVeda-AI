@@ -1,38 +1,49 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, ChangeEvent } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import MessageBubble from '@/components/chat/message-bubble';
-import type { Message } from '@/types';
+import type { Message, ChatSession } from '@/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ArrowLeft, Trash2, MessageSquareText, ChevronDown, ChevronUp } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { ArrowLeft, Trash2, MessageSquareText, Edit3, Check, XCircle } from 'lucide-react';
 import AppHeader from '@/components/layout/app-header';
 import AnimatedBackground from '@/components/common/animated-background';
 import { useToast } from '@/hooks/use-toast';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { useRouter } from 'next/navigation';
 
-const ALL_CHATS_KEY = 'codeVedaAllChats';
+
+const ALL_CHATS_KEY = 'codeVedaAllChats'; // Stores ChatSession[]
 
 export default function HistoryPage() {
-  const [allChatSessions, setAllChatSessions] = useState<Message[][]>([]);
+  const [allChatSessions, setAllChatSessions] = useState<ChatSession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState('');
   const { toast } = useToast();
+  const router = useRouter();
 
   const loadHistory = useCallback(() => {
     setIsLoading(true);
     const storedSessionsJson = localStorage.getItem(ALL_CHATS_KEY);
     if (storedSessionsJson) {
       try {
-        const parsedSessions: Message[][] = JSON.parse(storedSessionsJson).map(
-          (session: any[]) =>
-            session.map((msg: any) => ({
+        const parsedSessions: ChatSession[] = JSON.parse(storedSessionsJson).map(
+          (session: any) => ({
+            ...session,
+            messages: session.messages.map((msg: any) => ({
               ...msg,
               timestamp: new Date(msg.timestamp),
-            })).filter(msg => !msg.isTyping) // Filter out typing indicators from stored history
+            })).filter((msg: Message) => !msg.isTyping), // Filter out typing indicators
+            lastModified: new Date(session.lastModified),
+          })
         );
-        setAllChatSessions(parsedSessions.filter(session => session.length > 0)); // Only keep non-empty sessions
+        // Sort sessions by lastModified date, newest first
+        const sortedSessions = parsedSessions.sort((a,b) => b.lastModified.getTime() - a.lastModified.getTime());
+        setAllChatSessions(sortedSessions.filter(session => session.messages.length > 0));
       } catch (error) {
         console.error('Error parsing sessions from localStorage:', error);
         setAllChatSessions([]);
@@ -59,24 +70,36 @@ export default function HistoryPage() {
       title: 'All Chat History Cleared',
       description: 'All your conversations have been removed.',
     });
-    // Optionally, redirect to main page to start a new chat automatically
-    if (typeof window !== 'undefined') {
-        window.location.href = '/';
-    }
+    router.push('/'); // Navigate to main page to start a new chat automatically
   };
 
-  const getSessionTitle = (session: Message[]): string => {
-    if (session.length === 0) return "Empty Chat";
-    const firstUserMessage = session.find(msg => msg.sender === 'user');
-    const firstMessage = session[0];
-    const date = new Date(firstMessage.timestamp);
-    const formattedDate = date.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' });
-    const formattedTime = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const handleRename = (sessionId: string, currentTitle: string) => {
+    setEditingSessionId(sessionId);
+    setEditingTitle(currentTitle);
+  };
 
-    if (firstUserMessage) {
-      return `Chat from ${formattedDate} at ${formattedTime} ("${firstUserMessage.text.substring(0, 30)}${firstUserMessage.text.length > 30 ? '...' : ''}")`;
+  const handleSaveTitle = (sessionId: string) => {
+    if (!editingTitle.trim()) {
+      toast({ title: 'Invalid Title', description: 'Chat title cannot be empty.', variant: 'destructive' });
+      return;
     }
-    return `Chat from ${formattedDate} at ${formattedTime}`;
+    const updatedSessions = allChatSessions.map(session =>
+      session.id === sessionId ? { ...session, title: editingTitle.trim(), lastModified: new Date() } : session
+    );
+    localStorage.setItem(ALL_CHATS_KEY, JSON.stringify(updatedSessions));
+    setAllChatSessions(updatedSessions.sort((a,b) => b.lastModified.getTime() - a.lastModified.getTime()));
+    setEditingSessionId(null);
+    setEditingTitle('');
+    toast({ title: 'Chat Renamed', description: `Chat successfully renamed to "${editingTitle.trim()}".` });
+  };
+
+  const handleCancelRename = () => {
+    setEditingSessionId(null);
+    setEditingTitle('');
+  };
+  
+  const handleContinueChat = (sessionId: string) => {
+    router.push(`/?sessionId=${sessionId}`);
   };
 
 
@@ -104,23 +127,49 @@ export default function HistoryPage() {
         ) : allChatSessions.length > 0 ? (
           <ScrollArea className="flex-grow h-[calc(100vh-280px)] glassmorphic rounded-lg shadow-lg p-1">
             <Accordion type="multiple" className="w-full">
-              {allChatSessions.map((session, index) => (
-                session.length > 0 && ( // Ensure session is not empty
-                  <AccordionItem value={`session-${index}`} key={`session-key-${index}`} className="border-b border-border/30 last:border-b-0">
+              {allChatSessions.map((session) => (
+                session.messages.length > 0 && ( 
+                  <AccordionItem value={session.id} key={session.id} className="border-b border-border/30 last:border-b-0">
                     <AccordionTrigger className="py-3 px-4 text-sm hover:bg-card/50 rounded-t-md">
                       <div className="flex justify-between items-center w-full">
-                        <span>{getSessionTitle(session)}</span>
-                        <span className="text-xs text-muted-foreground mr-2">{session.length} messages</span>
+                        <span className="truncate max-w-[calc(100%-180px)]" title={session.title}>{session.title}</span>
+                        <div className="flex items-center gap-2">
+                           <span className="text-xs text-muted-foreground mr-2">{session.messages.length} messages</span>
+                           <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); handleContinueChat(session.id);}} className="text-xs h-7 px-2 border-primary/50 hover:bg-primary/10">
+                             Continue Chat
+                           </Button>
+                        </div>
                       </div>
                     </AccordionTrigger>
                     <AccordionContent className="bg-card/20 p-0 rounded-b-md">
-                      <ScrollArea className="h-[300px] p-4"> {/* Inner scroll for long chats */}
-                        <div className="space-y-3">
-                          {session.map((msg) => (
-                            <MessageBubble key={msg.id} message={msg} />
-                          ))}
-                        </div>
-                      </ScrollArea>
+                       <div className="p-4">
+                        {editingSessionId === session.id ? (
+                          <div className="flex items-center gap-2 mb-3">
+                            <Input 
+                              type="text" 
+                              value={editingTitle} 
+                              onChange={(e: ChangeEvent<HTMLInputElement>) => setEditingTitle(e.target.value)}
+                              className="h-8 text-sm"
+                              onKeyDown={(e) => e.key === 'Enter' && handleSaveTitle(session.id)}
+                            />
+                            <Button size="icon" variant="ghost" onClick={() => handleSaveTitle(session.id)} className="h-8 w-8 text-green-400 hover:text-green-300"><Check size={18}/></Button>
+                            <Button size="icon" variant="ghost" onClick={handleCancelRename} className="h-8 w-8 text-red-400 hover:text-red-300"><XCircle size={18}/></Button>
+                          </div>
+                        ) : (
+                          <div className="flex justify-end mb-3">
+                            <Button variant="ghost" size="sm" onClick={() => handleRename(session.id, session.title)} className="h-7 text-xs neon-text-accent hover:bg-accent/20">
+                              <Edit3 size={14} className="mr-1"/> Rename
+                            </Button>
+                          </div>
+                        )}
+                        <ScrollArea className="h-[250px]"> {/* Inner scroll for long chats */}
+                          <div className="space-y-3">
+                            {session.messages.map((msg) => (
+                              <MessageBubble key={msg.id} message={msg} />
+                            ))}
+                          </div>
+                        </ScrollArea>
+                      </div>
                     </AccordionContent>
                   </AccordionItem>
                 )

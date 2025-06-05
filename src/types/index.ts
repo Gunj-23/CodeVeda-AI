@@ -1,3 +1,4 @@
+
 export interface Message {
   id: string;
   text: string;
@@ -8,6 +9,13 @@ export interface Message {
   originalText?: string; // For translated messages
   translatedText?: string; // For translated messages
   isTyping?: boolean; // For typing indicator
+}
+
+export interface ChatSession {
+  id: string;
+  title: string;
+  messages: Message[];
+  lastModified: Date; // To help sort or identify recent chats
 }
 
 export interface LanguageOption {
