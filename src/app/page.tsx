@@ -55,53 +55,37 @@ export default function HomePage() {
 
   // Save messages to localStorage whenever they change
   useEffect(() => {
-    // This effect saves messages to localStorage.
-    // It has a special condition: Do not save if messages array contains only the
-    // initial bot message AND localStorage is currently empty or represents an empty array.
-    // This prevents the initial bot message from being written to localStorage
-    // immediately after a "New Chat" operation (which clears localStorage).
     if (messages.length === 1 && messages[0].id === initialMessageRef.current.id) {
       const storedJson = localStorage.getItem(CHAT_MESSAGES_KEY);
-      let isStoredJsonEffectivelyEmpty = !storedJson; // True if null or undefined
+      let isStoredJsonEffectivelyEmpty = !storedJson; 
 
       if (storedJson) {
         try {
           const parsed = JSON.parse(storedJson);
           if (Array.isArray(parsed) && parsed.length === 0) {
-            isStoredJsonEffectivelyEmpty = true; // True if it's a stringified empty array '[]'
+            isStoredJsonEffectivelyEmpty = true; 
           }
-          // If storedJson is not an empty array (e.g., has content, or is not an array like '{}'),
-          // isStoredJsonEffectivelyEmpty remains false (if !storedJson was false initially).
         } catch (e) {
-          // If parsing fails, treat as if it's not an empty stored array for safety,
-          // allowing save to proceed to potentially overwrite corrupted data.
-          // isStoredJsonEffectivelyEmpty will remain false (if !storedJson was false initially).
           console.warn("Could not parse localStorage for save check, considering it non-empty for save.", e);
         }
       }
 
       if (isStoredJsonEffectivelyEmpty) {
-        // localStorage is genuinely empty/null OR contains a stringified empty array.
-        // In this state, and if current messages are just the initial bot message,
-        // do not save yet. It will be saved once actual conversation starts.
         return;
       }
     }
 
-    // Proceed to save if the above condition isn't met, or if messages are more than initial.
     if (messages.length > 0) {
       localStorage.setItem(CHAT_MESSAGES_KEY, JSON.stringify(messages));
     } else {
-      // This case should ideally not be reached if we always reset to initialMessage.
-      // But if messages somehow becomes an empty array, clear storage.
       localStorage.removeItem(CHAT_MESSAGES_KEY);
     }
   }, [messages]);
 
 
   const startNewChat = () => {
-    localStorage.removeItem(CHAT_MESSAGES_KEY); // Clear storage first
-    setMessages([initialMessageRef.current]);   // Reset state to initial message
+    localStorage.removeItem(CHAT_MESSAGES_KEY); 
+    setMessages([initialMessageRef.current]);   
     toast({
       title: "New Chat Started",
       description: "The conversation has been cleared.",
@@ -212,14 +196,36 @@ export default function HomePage() {
     } catch (error) {
       console.error('Error processing message:', error);
       removeTypingIndicator();
-      const errorMessage = error instanceof Error ? error.message : 'Sorry, I encountered an error. Please try again.';
+      
+      let displayErrorMessage = 'Sorry, I encountered an error. Please try again.';
+      let toastTitle = 'Error';
+      let toastDescription = 'Failed to get response from AI.';
+
+      if (error instanceof Error) {
+        // Check for the specific image generation failure
+        if (error.message.includes('Image generation failed to return media')) {
+          displayErrorMessage = "The AI couldn't generate an image for this request. Please try a different description or try again later.";
+          toastTitle = 'Image Generation Failed';
+          toastDescription = "The AI couldn't produce an image for the given prompt.";
+        } else if (error.message.includes('AI Image Generation Error:')) { 
+          // Catch other AI Image Generation errors but use a slightly more generic message if not the "failed to return media" one
+          displayErrorMessage = "There was an issue generating the image. Please try again.";
+          toastTitle = 'Image Generation Error';
+          toastDescription = error.message; // Show the specific AI error
+        } else {
+           // For other errors, use the error message directly if available
+          displayErrorMessage = error.message || displayErrorMessage;
+          toastDescription = error.message || toastDescription;
+        }
+      }
+      
       addMessage({
         sender: 'bot',
-        text: errorMessage,
+        text: displayErrorMessage,
       });
       toast({
-        title: 'Error',
-        description: 'Failed to get response from AI. ' + (error instanceof Error ? error.message : ''),
+        title: toastTitle,
+        description: toastDescription,
         variant: 'destructive',
       });
     } finally {
@@ -242,3 +248,4 @@ export default function HomePage() {
     </div>
   );
 }
+

@@ -34,25 +34,39 @@ const generateActualImageFlow = ai.defineFlow(
   async (input) => {
     console.log('generateActualImageFlow: Received prompt:', input.prompt);
     try {
-      const {media} = await ai.generate({
-        model: 'googleai/gemini-2.0-flash-exp', 
+      const result = await ai.generate({
+        model: 'googleai/gemini-2.0-flash-exp',
         prompt: input.prompt,
         config: {
-          responseModalities: ['TEXT', 'IMAGE'], 
+          responseModalities: ['TEXT', 'IMAGE'],
         },
       });
 
+      console.log('generateActualImageFlow: Full AI result:', JSON.stringify(result, null, 2));
+
+      const media = result.media;
+
       if (!media || !media.url) {
-        console.error('generateActualImageFlow: No media URL returned from AI.');
+        console.error('generateActualImageFlow: No media URL returned from AI. Text response from AI (if any):', result.text);
+        // This specific error message is checked in page.tsx to provide user-friendly feedback
         throw new Error('Image generation failed to return media.');
       }
       console.log('generateActualImageFlow: Image generated, data URI length:', media.url.length);
       return { imageDataUri: media.url };
 
     } catch (error: any) {
-      console.error('Error in generateActualImageFlow during ai.generate:', error.message || String(error));
+      console.error('Error in generateActualImageFlow during ai.generate or processing:', error.message || String(error));
       console.error("Full error object in generateActualImageFlow:", error);
-      throw new Error(`AI Image Generation Error: ${error.message || 'Failed to generate image.'}`);
+      if (error.cause && typeof error.cause === 'object') {
+        console.error("Error cause:", JSON.stringify(error.cause, null, 2));
+      }
+      // Re-throw with a clear prefix, including the original message
+      let originalErrorMessage = 'Failed to generate image.';
+      if (error.message) {
+        originalErrorMessage = error.message;
+      }
+      throw new Error(`AI Image Generation Error: ${originalErrorMessage}`);
     }
   }
 );
+
