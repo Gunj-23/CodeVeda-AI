@@ -20,18 +20,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
     if (isUser) {
       return <User className={`w-8 h-8 p-1.5 rounded-full bg-primary text-primary-foreground flex-shrink-0 shadow-md`} />;
     }
-    // Consistent bot avatar placeholder
-    const botAvatarSrc = "https://placehold.co/40x40.png";
-    const botAltText = "Bot avatar placeholder";
-
+    // Use the Bot icon from lucide-react for the bot
     return (
-      <Image
-        src={botAvatarSrc}
-        alt={botAltText}
-        width={40}
-        height={40}
-        className="w-8 h-8 rounded-full flex-shrink-0 object-cover border-2 border-accent shadow-md" // Added border to bot avatar
-        data-ai-hint="bot icon" // Hint for AI to replace with a robot/bot icon
+      <Bot
+        className={`w-8 h-8 p-1.5 rounded-full bg-accent text-accent-foreground flex-shrink-0 shadow-md`}
       />
     );
   };
