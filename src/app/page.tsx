@@ -16,7 +16,6 @@ const CHAT_MESSAGES_KEY = 'chatMessages';
 export default function HomePage() {
   const { toast } = useToast();
 
-  // Use a ref for initialMessage to ensure stable identity if it were complex
   const initialMessageRef = useRef<Message>({
     id: 'initial-bot-message',
     text: "Welcome to CodeVeda AI! I'm your futuristic AI assistant. How can I help you today?",
@@ -27,8 +26,6 @@ export default function HomePage() {
   const [messages, setMessages] = useState<Message[]>([initialMessageRef.current]);
   const [isLoading, setIsLoading] = useState(false);
 
-
-  // Load messages from localStorage on initial render
   useEffect(() => {
     const storedMessagesJson = localStorage.getItem(CHAT_MESSAGES_KEY);
     if (storedMessagesJson) {
@@ -36,24 +33,23 @@ export default function HomePage() {
         const parsedMessages: Message[] = JSON.parse(storedMessagesJson).map(
           (msg: any) => ({
             ...msg,
-            timestamp: new Date(msg.timestamp), // Revive Date objects
+            timestamp: new Date(msg.timestamp), 
           })
         );
         if (parsedMessages.length > 0) {
           setMessages(parsedMessages);
         } else {
-          setMessages([initialMessageRef.current]); // Fallback if localStorage had empty array
+          setMessages([initialMessageRef.current]); 
         }
       } catch (error) {
         console.error('Error parsing messages from localStorage:', error);
-        setMessages([initialMessageRef.current]); // Fallback on error
+        setMessages([initialMessageRef.current]); 
       }
     } else {
-      setMessages([initialMessageRef.current]); // No stored messages, use initial
+      setMessages([initialMessageRef.current]); 
     }
-  }, []); // Empty dependency array: run only once on mount
+  }, []); 
 
-  // Save messages to localStorage whenever they change
   useEffect(() => {
     if (messages.length === 1 && messages[0].id === initialMessageRef.current.id) {
       const storedJson = localStorage.getItem(CHAT_MESSAGES_KEY);
@@ -130,11 +126,9 @@ export default function HomePage() {
     
     const historyForAI = messages.filter(m => !m.isTyping && m.id !== initialMessageRef.current.id || (m.id === initialMessageRef.current.id && messages.length > 1));
 
-
     setMessages(prev => [...prev, newUserMsg]);
     setIsLoading(true);
     addTypingIndicator();
-
 
     try {
       if (isImageMode) {
@@ -158,13 +152,41 @@ export default function HomePage() {
 
         const actualImageResult = await generateActualImageAction(enhancedPrompt);
         removeTypingIndicator();
-        addMessage({
-          sender: 'bot',
-          text: `Here's the image I generated based on the prompt: "${enhancedPrompt}"`,
-          imagePrompt: enhancedPrompt,
-          imageUrl: actualImageResult.imageDataUri,
-        });
-      } else {
+
+        if (actualImageResult.error) {
+          console.error('Error generating actual image:', actualImageResult.error);
+          let displayErrorMessage = actualImageResult.error;
+          let toastTitle = 'Image Generation Failed';
+          
+          if (actualImageResult.error.includes('Image generation failed to return media')) {
+            displayErrorMessage = "The AI couldn't generate an image for this request. Please try a different description or try again later.";
+          } else if (actualImageResult.error.startsWith('AI Image Generation Error:')) {
+             displayErrorMessage = "There was an issue generating the image. Please try again.";
+          }
+
+          addMessage({
+            sender: 'bot',
+            text: displayErrorMessage,
+          });
+          toast({
+            title: toastTitle,
+            description: actualImageResult.error, // Show the specific AI error from the result
+            variant: 'destructive',
+          });
+        } else if (actualImageResult.imageDataUri) {
+          addMessage({
+            sender: 'bot',
+            text: `Here's the image I generated based on the prompt: "${enhancedPrompt}"`,
+            imagePrompt: enhancedPrompt,
+            imageUrl: actualImageResult.imageDataUri,
+          });
+        } else {
+           // Fallback if neither error nor imageDataUri is present (should not happen with new flow logic)
+           addMessage({ sender: 'bot', text: "Sorry, something went wrong with image generation." });
+           toast({ title: 'Image Generation Error', description: 'Unexpected issue during image processing.', variant: 'destructive' });
+        }
+
+      } else { // Chat mode
         const chatResponse = await getChatResponseAction(userMessageText, historyForAI);
         let botText = chatResponse.botResponse;
         let originalTextForBot;
@@ -193,8 +215,8 @@ export default function HomePage() {
           translatedText: translatedTextForBot,
         });
       }
-    } catch (error) {
-      console.error('Error processing message:', error);
+    } catch (error) { // This catch block now primarily handles errors from chatFlow, translateTextAction, or generateImageQueryAction
+      console.error('Error processing message (outer catch):', error);
       removeTypingIndicator();
       
       let displayErrorMessage = 'Sorry, I encountered an error. Please try again.';
@@ -202,21 +224,8 @@ export default function HomePage() {
       let toastDescription = 'Failed to get response from AI.';
 
       if (error instanceof Error) {
-        // Check for the specific image generation failure
-        if (error.message.includes('Image generation failed to return media')) {
-          displayErrorMessage = "The AI couldn't generate an image for this request. Please try a different description or try again later.";
-          toastTitle = 'Image Generation Failed';
-          toastDescription = "The AI couldn't produce an image for the given prompt.";
-        } else if (error.message.includes('AI Image Generation Error:')) { 
-          // Catch other AI Image Generation errors but use a slightly more generic message if not the "failed to return media" one
-          displayErrorMessage = "There was an issue generating the image. Please try again.";
-          toastTitle = 'Image Generation Error';
-          toastDescription = error.message; // Show the specific AI error
-        } else {
-           // For other errors, use the error message directly if available
           displayErrorMessage = error.message || displayErrorMessage;
           toastDescription = error.message || toastDescription;
-        }
       }
       
       addMessage({
@@ -248,4 +257,3 @@ export default function HomePage() {
     </div>
   );
 }
-

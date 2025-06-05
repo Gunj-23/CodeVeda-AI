@@ -3,7 +3,7 @@
 /**
  * @fileOverview A Genkit flow for generating an actual image from a prompt.
  *
- * - generateActualImage - A function that takes an image prompt and returns the image as a data URI.
+ * - generateActualImage - A function that takes an image prompt and returns the image as a data URI or an error.
  * - GenerateActualImageInput - The input type for the generateActualImage function.
  * - GenerateActualImageOutput - The return type for the generateActualImage function.
  */
@@ -17,7 +17,8 @@ const GenerateActualImageInputSchema = z.object({
 export type GenerateActualImageInput = z.infer<typeof GenerateActualImageInputSchema>;
 
 const GenerateActualImageOutputSchema = z.object({
-  imageDataUri: z.string().describe('The generated image as a data URI.'),
+  imageDataUri: z.string().optional().describe('The generated image as a data URI.'),
+  error: z.string().optional().describe('An error message if image generation failed.'),
 });
 export type GenerateActualImageOutput = z.infer<typeof GenerateActualImageOutputSchema>;
 
@@ -31,7 +32,7 @@ const generateActualImageFlow = ai.defineFlow(
     inputSchema: GenerateActualImageInputSchema,
     outputSchema: GenerateActualImageOutputSchema,
   },
-  async (input) => {
+  async (input): Promise<GenerateActualImageOutput> => {
     console.log('generateActualImageFlow: Received prompt:', input.prompt);
     try {
       const result = await ai.generate({
@@ -48,8 +49,7 @@ const generateActualImageFlow = ai.defineFlow(
 
       if (!media || !media.url) {
         console.error('generateActualImageFlow: No media URL returned from AI. Text response from AI (if any):', result.text);
-        // This specific error message is checked in page.tsx to provide user-friendly feedback
-        throw new Error('Image generation failed to return media.');
+        return { error: 'AI Image Generation Error: Image generation failed to return media.' };
       }
       console.log('generateActualImageFlow: Image generated, data URI length:', media.url.length);
       return { imageDataUri: media.url };
@@ -60,13 +60,13 @@ const generateActualImageFlow = ai.defineFlow(
       if (error.cause && typeof error.cause === 'object') {
         console.error("Error cause:", JSON.stringify(error.cause, null, 2));
       }
-      // Re-throw with a clear prefix, including the original message
+      
       let originalErrorMessage = 'Failed to generate image.';
       if (error.message) {
         originalErrorMessage = error.message;
       }
-      throw new Error(`AI Image Generation Error: ${originalErrorMessage}`);
+      // Instead of throwing, return an error object
+      return { error: `AI Image Generation Error: ${originalErrorMessage}` };
     }
   }
 );
-
