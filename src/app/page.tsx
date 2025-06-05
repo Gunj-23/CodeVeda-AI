@@ -84,14 +84,15 @@ export default function HomePage() {
             return;
         }
         
-        const actualImageResult = await generateActualImageAction(enhancedPrompt);
-
+        // Temporarily revert to placeholder behavior
+        // const actualImageResult = await generateActualImageAction(enhancedPrompt);
         removeTypingIndicator();
         addMessage({
           sender: 'bot',
-          text: `Here's an image I generated based on the prompt: "${enhancedPrompt}"`,
+          text: `Here's an image I would generate based on the prompt: "${enhancedPrompt}" (Actual image generation is temporarily disabled for diagnosis)`,
           imagePrompt: enhancedPrompt,
-          imageUrl: actualImageResult.imageDataUri, 
+          // imageUrl: actualImageResult.imageDataUri, 
+          imageUrl: `https://placehold.co/300x200.png?text=${encodeURIComponent(enhancedPrompt.substring(0,50))}`,
         });
       } else {
         const chatResponse = await getChatResponseAction(userMessageText, historyForAI);
@@ -155,3 +156,4 @@ export default function HomePage() {
     </div>
   );
 }
+
